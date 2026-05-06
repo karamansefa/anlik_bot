@@ -1,8 +1,9 @@
 import json
 import os
 from scraper import get_all_news, get_article_detail
-from image_generator import haber_gorseli_olustur
+from image_generator import create_news_image, start_server
 from telegram_sender import send_photo, send_message
+from config import CATEGORY_RULES, DEFAULT_CATEGORY, MAX_NEWS_PER_RUN, SERVER_PORT
 
 # ---------------------------------------------------
 # AYARLAR
@@ -39,9 +40,17 @@ def sent_news_kaydet(liste):
     with open(SENT_FILE, "w", encoding="utf-8") as f:
         json.dump(liste, f, ensure_ascii=False, indent=2)
 
+def determine_category(title):
+    t = title.lower()
+    for category, keywords in CATEGORY_RULES.items():
+        if any(k in t for k in keywords):
+            return category
+    return DEFAULT_CATEGORY
 
 def main():
     print("=" * 50)
+    server = start_server()
+    print("Sunucu başladı")
     print("Çanakkale Anlık Haber Botu Başladı")
     print("=" * 50)
 
@@ -67,26 +76,37 @@ def main():
 
     if not yeni_haberler:
         print("Yeni haber yok. Çıkılıyor.")
+        server.shutdown()
         return
 
     # ---------------------------------------------------
-    # 4. ADIM: En fazla MAX_HABER kadar gönder
+    # 4. ADIM: Her siteden 1 haber al, max MAX_NEWS_PER_RUN
     # ---------------------------------------------------
-    gonderilecekler = yeni_haberler[:MAX_HABER]
+    from collections import defaultdict
+    site_counts = defaultdict(int)
+    gonderilecekler = []
+
+    for haber in yeni_haberler:
+        site = haber["source"]
+        if site_counts[site] < 1 and len(gonderilecekler) < MAX_NEWS_PER_RUN:
+            gonderilecekler.append(haber)
+            site_counts[site] += 1
+
     gonderilen_count = 0
 
     for haber in gonderilecekler:
         print(f"\nİşleniyor: {haber['title'][:50]}...")
 
-        # Haberin detayını çek (görsel + açıklama)
+        # Haberin detayını çek
         detay = get_article_detail(haber["url"])
 
         # Görseli oluştur
-        gorsel_yolu = haber_gorseli_olustur(
-            baslik=haber["title"],
-            aciklama=detay["description"],
-            kaynak=haber["source"],
-            gorsel_url=detay["image_url"]
+        gorsel_yolu = create_news_image(
+            title=haber["title"],
+            description=detay["description"],
+            source=haber["source"],
+            image_url=detay["image_url"],
+            category=determine_category(haber["title"])
         )
 
         # Telegram mesajını hazırla
@@ -114,6 +134,7 @@ def main():
     print(f"\n{'=' * 50}")
     print(f"Tamamlandı! {gonderilen_count} haber gönderildi.")
     print(f"{'=' * 50}")
+    server.shutdown()
 
 
 # ---------------------------------------------------

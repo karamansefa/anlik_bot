@@ -1,33 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-
-# ---------------------------------------------------
-# SITELER
-# Her sitenin adı, adresi ve haber linklerini
-# nasıl bulacağımızı tanımlıyoruz
-# ---------------------------------------------------
-SITES = [
-    {
-        "name": "Çanakkale Haber",
-        "url": "https://www.canakkalehaber.com/",
-        "base_url": "https://www.canakkalehaber.com"
-    },
-    {
-        "name": "Aynalı Pazar",
-        "url": "https://www.canakkaleaynalipazar.com/",
-        "base_url": "https://www.canakkaleaynalipazar.com"
-    },
-    {
-        "name": "Haberler.com Çanakkale",
-        "url": "https://www.haberler.com/canakkale/",
-        "base_url": "https://www.haberler.com"
-    },
-    {
-        "name": "Çanakkale Manşet",
-        "url": "https://www.canakkalemanset.com/",
-        "base_url": "https://www.canakkalemanset.com"
-    }
-]
+from config import SITES
 
 # Bazı siteler bot olduğumuzu anlayıp bizi engelliyor
 # Normal bir tarayıcıymış gibi davranmak için bu başlığı ekliyoruz

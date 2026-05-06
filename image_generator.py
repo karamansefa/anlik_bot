@@ -1,200 +1,135 @@
-import requests
-from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
-import textwrap
 import os
+import threading
+import urllib.parse
+import http.server
+from playwright.sync_api import sync_playwright
 
 # ---------------------------------------------------
-# RENKLER
-# RGB formatı: (Kırmızı, Yeşil, Mavi) — 0-255 arası
+# AYARLAR
 # ---------------------------------------------------
-KIRMIZI = (200, 30, 30)
-KOYU_KIRMIZI = (150, 15, 15)
-BEYAZ = (255, 255, 255)
-SIYAH = (0, 0, 0)
-SEFFAF_SIYAH = (0, 0, 0, 180)  # 4. değer: saydamlık (0=tam şeffaf, 255=tam opak)
+
+# HTML şablonunun bulunduğu klasör
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Görselin kaydedileceği yol
+OUTPUT_PATH = os.path.join(BASE_DIR, "haber_gorseli.png")
+
+# Sunucu portu
+PORT = 8765
+
 
 # ---------------------------------------------------
-# BOYUTLAR
-# Instagram kare formatı: 1080x1080 piksel
+# SUNUCU
 # ---------------------------------------------------
-GENISLIK = 1080
-YUKSEKLIK = 1080
 
-
-def gorsel_indir(url):
+class SilentHandler(http.server.SimpleHTTPRequestHandler):
     """
-    URL'den görsel indirir ve PIL Image olarak döndürür.
-    Başarısız olursa None döndürür.
+    Sessiz HTTP sunucusu.
+    Normalde her istek terminale yazdırılır.
+    Biz bunu istemiyoruz — log mesajlarını gizliyoruz.
     """
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        img = Image.open(BytesIO(response.content)).convert("RGBA")
-        return img
-    except Exception as e:
-        print(f"Görsel indirme hatası: {e}")
-        return None
+    def log_message(self, format, *args):
+        pass  # Hiçbir şey yazdırma
+
+    def log_error(self, format, *args):
+        pass  # Hataları da gizle
 
 
-def font_yukle(boyut, kalin=False):
+def start_server():
     """
-    Sisteme uygun font yükler.
-    Windows ve Linux için farklı font yolları dener.
+    Arka planda HTTP sunucusu başlatır.
+    Bu sunucu HTML şablonunu Playwright'a sunar.
     """
-    # Windows font yolları
-    windows_fontlar = [
-        f"C:/Windows/Fonts/{'arialbd' if kalin else 'arial'}.ttf",
-        f"C:/Windows/Fonts/{'calibrib' if kalin else 'calibri'}.ttf",
-    ]
-    # Linux font yolları (GitHub Actions Linux kullanır)
-    linux_fontlar = [
-        f"/usr/share/fonts/truetype/dejavu/DejaVuSans{'-Bold' if kalin else ''}.ttf",
-        f"/usr/share/fonts/truetype/liberation/LiberationSans{'-Bold' if kalin else ''}.ttf",
-    ]
-
-    for font_yolu in windows_fontlar + linux_fontlar:
-        try:
-            return ImageFont.truetype(font_yolu, boyut)
-        except:
-            continue
-
-    # Hiçbiri bulunamazsa varsayılan font
-    print("Uyarı: Sistem fontu bulunamadı, varsayılan kullanılıyor.")
-    return ImageFont.load_default()
+    os.chdir(BASE_DIR)  # Doğru klasörde çalış
+    server = http.server.HTTPServer(("localhost", PORT), SilentHandler)
+    # daemon=True → Ana program bitince sunucu da biter
+    thread = threading.Thread(target=server.serve_forever)
+    thread.daemon = True
+    thread.start()
+    return server
 
 
-def metin_sar(metin, max_karakter):
+# ---------------------------------------------------
+# ANA FONKSİYON
+# ---------------------------------------------------
+
+def create_news_image(title, description, source, image_url=None, category=""):
     """
-    Uzun metni belirli karakter sayısında satırlara böler.
-    Türkçe karakterleri destekler.
-    """
-    return textwrap.wrap(metin, width=max_karakter)
-
-
-def haber_gorseli_olustur(baslik, aciklama, kaynak, gorsel_url=None):
-    """
-    Ana fonksiyon — haber kartı görselini oluşturur.
+    Haber görseli oluşturur.
 
     Parametreler:
-    baslik      → haberin başlığı (h1 + h2 olarak ikiye bölünecek)
-    aciklama    → haberin kısa açıklaması
-    kaynak      → hangi siteden geldi (örn: Çanakkale Haber)
-    gorsel_url  → arka plan görseli URL'si (yoksa düz renk kullanılır)
+    title       → haberin başlığı
+    description → haberin kısa açıklaması  
+    source      → kaynak site adı
+    image_url   → arka plan görseli URL'si (opsiyonel)
+    category    → haber kategorisi (TRAFİK, ASAYİŞ vb.)
 
     Döndürür:
-    output_path → oluşturulan görselin bilgisayardaki yolu
+    output_path → oluşturulan görselin yolu
     """
 
     # ---------------------------------------------------
-    # 1. ADIM: CANVAS OLUŞTUR (boş tuval)
-    # RGBA = Red, Green, Blue, Alpha (saydamlık)
+    # 1. ADIM: Başlığı ikiye böl (h1 ve h2)
     # ---------------------------------------------------
-    canvas = Image.new("RGBA", (GENISLIK, YUKSEKLIK), (*SIYAH, 255))
+    # Örnek: "Çanakkale'de trafik sorunu devam ediyor"
+    # h1 → "ÇANAKKALE'DE TRAFİK SORUNU"
+    # h2 → "DEVAM EDİYOR"
+    words = title.split()
+    mid = len(words) // 2
+    h1 = " ".join(words[:mid]).upper()
+    h2 = " ".join(words[mid:]).upper()
 
     # ---------------------------------------------------
-    # 2. ADIM: ARKA PLAN GÖRSELİ
+    # 2. ADIM: URL parametrelerini hazırla
     # ---------------------------------------------------
-    if gorsel_url:
-        arka_plan = gorsel_indir(gorsel_url)
-        if arka_plan:
-            # Görseli 1080x1080'e sığdır (kırparak)
-            arka_plan = arka_plan.resize((GENISLIK, YUKSEKLIK), Image.LANCZOS)
-            canvas.paste(arka_plan, (0, 0))
+    params = urllib.parse.urlencode({
+        "h1": h1,
+        "h2": h2,
+        "desc": description[:200] if description else "",
+        "cat": category,
+        "img": image_url or ""
+    })
 
-    # Üstüne koyu yarı şeffaf katman ekle (metinler okunabilsin)
-    karanlik_katman = Image.new("RGBA", (GENISLIK, YUKSEKLIK), SEFFAF_SIYAH)
-    canvas.paste(karanlik_katman, (0, 0), karanlik_katman)
-
-    # ---------------------------------------------------
-    # 3. ADIM: SOL KIRMIZI ÇUBUK + ÇANAKKALE YAZISI
-    # ---------------------------------------------------
-    draw = ImageDraw.Draw(canvas)
-
-    # Kırmızı dikey çubuk (sol kenar)
-    draw.rectangle([30, 0, 65, YUKSEKLIK], fill=KIRMIZI)
-
-    # ÇANAKKALE yazısını dikey yaz
-    font_dikey = font_yukle(28, kalin=True)
-
-    # Yazıyı önce yatay oluştur, sonra döndür
-    dikey_yazi = Image.new("RGBA", (400, 40), (0, 0, 0, 0))
-    dikey_draw = ImageDraw.Draw(dikey_yazi)
-    dikey_draw.text((10, 10), "ÇANAKKALE", font=font_dikey, fill=BEYAZ)
-    dikey_yazi = dikey_yazi.rotate(90, expand=True)  # 90 derece döndür
-    canvas.paste(dikey_yazi, (5, 230), dikey_yazi)  # Sol çubuğa yapıştır
+    url = f"http://localhost:{PORT}/canakkale-anlik.html?{params}"
 
     # ---------------------------------------------------
-    # 4. ADIM: LOGO ALANI (sağ üst köşe)
-    # Şimdilik metin olarak yazıyoruz
+    # 3. ADIM: Playwright ile ekran görüntüsü al
     # ---------------------------------------------------
-    font_logo = font_yukle(28, kalin=True)
-    draw.text((GENISLIK - 220, 30), "ÇANAKKALE", font=font_logo, fill=BEYAZ)
-    draw.text((GENISLIK - 180, 65), "ANLIK", font=font_logo, fill=KIRMIZI)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)  # Arka planda çalış
+        page = browser.new_page()
+        page.set_viewport_size({"width": 540, "height": 1200})
 
-    # ---------------------------------------------------
-    # 5. ADIM: BAŞLIK KUTULARI
-    # ---------------------------------------------------
-    font_h1 = font_yukle(52, kalin=True)
-    font_h2 = font_yukle(44, kalin=True)
-    font_aciklama = font_yukle(32, kalin=False)
-    font_kaynak = font_yukle(26, kalin=False)
+        # Sayfayı aç, ağ trafiği durene kadar bekle
+        page.goto(url, wait_until="networkidle")
 
-    # Başlığı ikiye böl
-    kelimeler = baslik.split()
-    orta = len(kelimeler) // 2
-    h1 = " ".join(kelimeler[:orta]).upper()
-    h2 = " ".join(kelimeler[orta:]).upper()
+        # Canvas çizimi için ekstra bekle
+        page.wait_for_timeout(1500)
 
-    # Alt bölümün başlangıç noktası
-    alt_y = YUKSEKLIK - 420
-    sol_x = 85
-    sag_x = GENISLIK - 40
+        # Sadece canvas elementini yakala
+        page.locator("canvas").screenshot(path=OUTPUT_PATH)
 
-    # H1 kutusu — beyaz arka plan, kırmızı yazı
-    draw.rectangle([sol_x, alt_y, sag_x, alt_y + 85], fill=BEYAZ)
-    draw.text((sol_x + 15, alt_y + 15), h1[:35], font=font_h1, fill=KIRMIZI)
+        browser.close()
 
-    # H2 kutusu — kırmızı arka plan, beyaz yazı
-    draw.rectangle([sol_x, alt_y + 90, sag_x, alt_y + 170], fill=KIRMIZI)
-    draw.text((sol_x + 15, alt_y + 100), h2[:35], font=font_h2, fill=BEYAZ)
-
-    # ---------------------------------------------------
-    # 6. ADIM: AÇIKLAMA METNİ
-    # ---------------------------------------------------
-    if aciklama:
-        satirlar = metin_sar(aciklama[:250], max_karakter=45)
-        metin_y = alt_y + 185
-        for satir in satirlar[:5]:  # En fazla 5 satır
-            draw.text((sol_x, metin_y), satir, font=font_aciklama, fill=BEYAZ)
-            metin_y += 42  # Satır aralığı
-
-    # ---------------------------------------------------
-    # 7. ADIM: KAYNAK BİLGİSİ (alt köşe)
-    # ---------------------------------------------------
-    draw.text(
-        (sol_x, YUKSEKLIK - 50),
-        f"Kaynak: {kaynak}",
-        font=font_kaynak,
-        fill=(180, 180, 180)  # Açık gri
-    )
-
-    # ---------------------------------------------------
-    # 8. ADIM: GÖRSELİ KAYDET
-    # ---------------------------------------------------
-    output_path = "test_haber.png"
-    canvas.convert("RGB").save(output_path, "PNG", quality=95)
-    print(f"Görsel oluşturuldu: {output_path}")
-    return output_path
+    print(f"Görsel oluşturuldu: {OUTPUT_PATH}")
+    return OUTPUT_PATH
 
 
 # ---------------------------------------------------
 # TEST BLOĞU
 # ---------------------------------------------------
 if __name__ == "__main__":
-    haber_gorseli_olustur(
-        baslik="Çanakkale'de Troya Maratonu heyecanı başladı",
-        aciklama="Çanakkale'de düzenlenen Troya Maratonu'na bu yıl binlerce sporcu katıldı.",
-        kaynak="Çanakkale Haber",
-        gorsel_url=None  # Şimdilik boş, düz siyah arka plan kullanılacak
+    # Sunucuyu başlat
+    server = start_server()
+    print(f"Sunucu başladı: http://localhost:{PORT}")
+
+    # Test
+    path = create_news_image(
+        title="Çanakkale'de Troya Maratonu heyecanı başladı",
+        description="Çanakkale'de düzenlenen Troya Maratonu'na bu yıl binlerce sporcu katıldı.",
+        source="Çanakkale Haber",
+        category="ETKİNLİK"
     )
+
+    print(f"Test tamamlandı: {path}")
+    server.shutdown()
