@@ -96,9 +96,12 @@ def create_news_image(title, description, source, image_url=None, category=""):
     # 3. ADIM: Playwright ile ekran görüntüsü al
     # ---------------------------------------------------
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)  # Arka planda çalış
-        page = browser.new_page()
-        page.set_viewport_size({"width": 540, "height": 1200})
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+        viewport={"width": 1000, "height": 1800},
+        device_scale_factor=2
+    )
+        page = context.new_page()
 
         # Sayfayı aç, ağ trafiği durene kadar bekle
         page.goto(url, wait_until="networkidle")
