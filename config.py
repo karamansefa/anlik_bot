@@ -44,7 +44,7 @@ SITES = [
 CATEGORY_RULES = {
     "ASAYİŞ": [
         "kaza", "çarpış", "yaral", "öldü", "hayatın kaybett",
-        "cinayet", "kavga", "hırsız", "operasyon",
+        "cinayet", "kavga", "hırsız",
         "gözalt", "tutuklam", "tutukland", "yakaland",
         "uyuşturucu", "yangın", "göçmen", "kaçakç", "suç",
         "ihbar", "şüpheli", "silah", "bıçak",
