@@ -7,7 +7,7 @@ TELEGRAM_CHAT_ID = None
 # ---------------------------------------------------
 # Bot ayarları
 # ---------------------------------------------------
-MAX_NEWS_PER_RUN = 4
+MAX_NEWS_PER_RUN = 3
 SERVER_PORT = 8765
 
 # ---------------------------------------------------
@@ -28,13 +28,8 @@ SITES = [
         "name": "Çanakkale Olay",
         "url": "https://www.canakkaleolay.com/",
         "base_url": "https://www.canakkaleolay.com"
-    },
-    {
-        "name": "Çanakkale Manşet",
-        "url": "https://www.canakkalemanset.com/",
-        "base_url": "https://www.canakkalemanset.com",
-        "rss_url": "https://www.canakkalemanset.com/feed"
     }
+ 
 ]
 
 # ---------------------------------------------------
