@@ -1,0 +1,2 @@
+# sent_news.json conflict çıkınca GitHub'daki versiyonu kullan
+sent_news.json merge=ours
