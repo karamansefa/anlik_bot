@@ -32,7 +32,8 @@ SITES = [
     {
         "name": "Çanakkale Manşet",
         "url": "https://www.canakkalemanset.com/",
-        "base_url": "https://www.canakkalemanset.com"
+        "base_url": "https://www.canakkalemanset.com",
+        "rss_url": "https://www.canakkalemanset.com/feed"
     }
 ]
 
