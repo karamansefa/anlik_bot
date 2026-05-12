@@ -8,7 +8,7 @@ from config import SITES
 # AYARLAR
 # ---------------------------------------------------
 HEADERS = {"User-Agent": "Mozilla/5.0"}
-MAX_AGE_HOURS = 24  # Kaç saatlik haberleri al
+MAX_AGE_HOURS = 1  # Kaç saatlik haberleri al
 
 
 # ---------------------------------------------------
