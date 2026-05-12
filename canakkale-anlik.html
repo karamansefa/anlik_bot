@@ -372,7 +372,7 @@ function draw(){
   cx.strokeStyle=inv?"rgba(0,0,0,0.6)":"rgba(255,255,255,0.45)";
   cx.lineWidth=3; cx.stroke();
 
-  var loc=gv("iLoc").toUpperCase()||"CANAKKALE";
+  var loc=gv("iLoc")||"ÇANAKKALE";
   var fsL=gn("s4");
   cx.save();
   cx.font="900 "+fsL+"px 'Barlow Condensed'";
@@ -466,8 +466,8 @@ function draw(){
 
   var sx=120, maxW=W-sx-60;
   var y=H*(gn("sY")/100);
-  var h1v=gv("iH1").toUpperCase();
-  var h2v=gv("iH2").toUpperCase();
+  var h1v=gv("iH1");
+  var h2v=gv("iH2");
   var fs1=gn("s1"), fs2=gn("s2"), fs3=gn("s3");
 
   if(h1v){

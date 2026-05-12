@@ -1,11 +1,13 @@
 import requests
 import os
+from dotenv import load_dotenv
 
 # ---------------------------------------------------
 # TELEGRAM BİLGİLERİ
 # os.environ.get() → GitHub Secrets'tan okur
 # Kod içine direkt yazmıyoruz — güvenlik için
 # ---------------------------------------------------
+load_dotenv()
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 

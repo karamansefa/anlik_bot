@@ -38,20 +38,10 @@ SITES = [
 # Örnek: "gözalt" → gözaltı, gözaltına, gözaltında
 # ---------------------------------------------------
 CATEGORY_RULES = {
-    "ASAYİŞ": [
-        "kaza", "çarpış", "yaral", "öldü", "hayatın kaybett",
-        "cinayet", "kavga", "hırsız",
-        "gözalt", "tutuklam", "tutukland", "yakaland",
-        "uyuşturucu", "yangın", "göçmen", "kaçakç", "suç",
-        "ihbar", "şüpheli", "silah", "bıçak",
-        "darp", "saldırı", "gasp", "dolandırıcı",
-        "kaçtı", "firari", "aranan", "ceset", "intihar", "boğuldu"
-    ],
-
     "TRAFİK": [
         "trafik", "kavşak", "ulaşım", "asfalt",
-        "köprü", "kapan", "yol çalışm", "otobüs",
-        "araç", "sürücü", "tıkandı", "yaya",
+        "köprü", "yol çalışm", "otobüs",
+        "sürücü", "tıkandı", "yaya",
         "direksiyon", "hakimiyet", "takla", "devrildi",
         "çarpıştı", "kaza yaptı", "park halinde",
         "çarptı", "ezdi", "motosiklet", "tır",
@@ -63,6 +53,16 @@ CATEGORY_RULES = {
         "soğuk", "meteoroloji", "sel", "taşkın", "don",
         "sis", "dolu", "rüzgar", "uyarı",
         "deprem", "afet", "heyelan", "çığ", "buz"
+    ],
+
+    "ASAYİŞ": [
+        "kaza", "çarpış", "yaral", "öldü", "hayatın kaybett",
+        "cinayet", "kavga", "hırsız",
+        "gözalt", "tutuklam", "tutukland", "yakaland",
+        "uyuşturucu", "yangın", "göçmen", "kaçakç", "suç",
+        "ihbar", "şüpheli", "silah", "bıçak",
+        "darp", "saldırı", "gasp", "dolandırıcı",
+        "kaçtı", "firari", "aranan", "ceset", "intihar", "boğuldu"
     ],
 
     "SPOR": [
@@ -96,6 +96,12 @@ CATEGORY_RULES = {
         "gelenek", "folklo", "türkü", "dans",
         "tablo", "halk", "miras", "kazı"
     ],
-}
 
+    "EĞİTİM": [
+        "üniversite", "okul", "öğrenci", "öğretmen",
+        "eğitim", "mezun", "sınav", "burs",
+        "akademi", "fakülte", "rektör", "kampüs",
+        "seminer", "kurs", "sertifika", "diploma"
+    ],
+}
 DEFAULT_CATEGORY = "GÜNDEM"

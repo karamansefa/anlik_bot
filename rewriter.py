@@ -2,21 +2,29 @@ import os
 import requests
 from dotenv import load_dotenv
 
-# .env dosyasını oku
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 
 def rewrite_news(title, description):
     """
     Haberi Groq API ile yeniden yazar.
-    Aynı manayı farklı kelimelerle ifade eder.
+    Hata durumunda orijinal haberi döndürür, bot durmaz.
     """
-    prompt = f"""Sen bir haber editörüsün. Aşağıdaki haberi aynı bilgileri koruyarak farklı kelimelerle yeniden yaz. Telif sorunu yaşanmaması için cümle yapısını değiştir ama haberin özünü koru. Türkçe yaz.
+    prompt = f"""Sen bir Türkçe haber editörüsün. Aşağıdaki haberi SADECE TÜRKÇE olarak yeniden yaz.
+
+KESİNLİKLE UYULMASI GEREKEN KURALLAR:
+- Yabancı dil kullanma
+- Uydurma bilgi ekleme
+- BAŞLIK: tam olarak 6-8 kelime olmalı
+- AÇIKLAMA: tam olarak 2 cümle olmalı, toplam 20-25 kelime olmalı
+- Her cümle nokta ile bitmeli
+- Açıklama haberin özünü yansıtmalı
 
 Başlık: {title}
 Açıklama: {description}
 
-Şu formatta cevap ver:
+SADECE şu formatta yaz:
 BAŞLIK: yeniden yazılmış başlık
 AÇIKLAMA: yeniden yazılmış açıklama"""
 
@@ -28,9 +36,16 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
     body = {
         "model": "llama-3.3-70b-versatile",
         "messages": [
-            {"role": "user", "content": prompt}
+            {
+                "role": "system",
+                "content": "Sen yalnızca Türkçe konuşan bir haber editörüsün. Asla başka dil kullanma. Verilen kelime sayısı kurallarına kesinlikle uy."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
         ],
-        "temperature": 0.7
+        "temperature": 0.3
     }
 
     try:
@@ -43,7 +58,6 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
         data = response.json()
         text = data["choices"][0]["message"]["content"]
 
-        # Başlık ve açıklamayı ayır
         lines = text.strip().split("\n")
         new_title = title
         new_description = description
@@ -61,14 +75,13 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
         return title, description
 
 
-# Test bloğu
 if __name__ == "__main__":
     baslik = "Çanakkale'de trafik kazası: 2 kişi yaralandı"
     aciklama = "Merkez ilçede meydana gelen trafik kazasında 2 kişi yaralanarak hastaneye kaldırıldı."
 
     yeni_baslik, yeni_aciklama = rewrite_news(baslik, aciklama)
-    print(f"Orijinal başlık : {baslik}")
-    print(f"Yeni başlık     : {yeni_baslik}")
+    print(f"Orijinal başlık   : {baslik}")
+    print(f"Yeni başlık       : {yeni_baslik}")
     print(f"---")
     print(f"Orijinal açıklama : {aciklama}")
     print(f"Yeni açıklama     : {yeni_aciklama}")
