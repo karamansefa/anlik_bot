@@ -10,6 +10,38 @@ from config import SITES
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 MAX_AGE_HOURS = 1  # Kaç saatlik haberleri al
 
+# ---------------------------------------------------
+# ÇANAKKALE FİLTRESİ
+# ---------------------------------------------------
+# Kök kelime: çanakkale
+# Dal kelimeler: ilçeler, semtler, özel isimler
+# Tek başına güvenli: biga, gelibolu gibi Türkiye'de benzersiz olanlar
+# Bağlam gerektiren: yenice gibi başka şehirlerde de olanlar
+
+CANAKKALE_KELIMELERI = [
+    # Şehir
+    "çanakkale",
+    # İlçeler
+    "biga", "gelibolu", "lapseki", "ezine", "ayvacık",
+    "bayramiç", "çan", "eceabat", "gökçeada", "bozcaada",
+    "yenice", "kepez",
+    # Özel isimler
+    "çomü", "troya", "truva", "dardanel",
+    "kilitbahir", "çanakkale boğazı"
+]
+
+def canakkale_haberi_mi(haber):
+    """
+    Haberin Çanakkale ile ilgili olup olmadığını kontrol eder.
+    Başlık veya açıklamada Çanakkale anahtar kelimelerinden
+    biri geçiyorsa True döner.
+    """
+    kontrol_metni = (
+        haber.get("title", "") + " " +
+        haber.get("description", "")
+    ).lower()
+
+    return any(kelime in kontrol_metni for kelime in CANAKKALE_KELIMELERI)
 
 # ---------------------------------------------------
 # YARDIMCI FONKSİYONLAR
@@ -141,19 +173,20 @@ def get_article_detail(url):
 
 
 def get_all_news():
-    """
-    Tüm sitelerden haberleri RSS üzerinden toplar.
-    """
     all_news = []
-
     for site in SITES:
         print(f"Taranıyor: {site['name']}...")
         news = fetch_rss(site)
         all_news.extend(news)
         print(f"  → {len(news)} haber bulundu")
 
+    # Çanakkale filtresi uygula
+    canakkale_haberleri = [h for h in all_news if canakkale_haberi_mi(h)]
+    
     print(f"\nToplam: {len(all_news)} haber")
-    return all_news
+    print(f"Çanakkale ile ilgili: {len(canakkale_haberleri)} haber")
+    
+    return canakkale_haberleri # return all_news
 
 
 # ---------------------------------------------------
