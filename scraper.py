@@ -61,13 +61,22 @@ def parse_date(date_str):
 def is_recent(date_str, max_hours=MAX_AGE_HOURS):
     """
     Haberin son max_hours saat içinde yayınlanıp yayınlanmadığını kontrol eder.
+    
+    Negatif fark = gelecekte schedule edilmiş haber → kabul et
+    Pozitif fark = geçmişte yayınlanmış → max_hours ile kontrol et
     """
     pub_date = parse_date(date_str)
     if not pub_date:
-        return True  # Tarih yoksa haberi al (güvenli taraf)
+        return True
 
     now = datetime.now(timezone.utc)
     age_hours = (now - pub_date).total_seconds() / 3600
+    
+    # Gelecekte schedule edilmiş haberler → kabul et (max 24 saat ilerisi)
+    if age_hours < 0:
+        return abs(age_hours) <= 24
+    
+    # Geçmişteki haberler → max_hours ile kontrol et
     return age_hours <= max_hours
 
 

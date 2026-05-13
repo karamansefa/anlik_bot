@@ -40,12 +40,13 @@ def sent_news_kaydet(liste):
         json.dump(liste, f, ensure_ascii=False, indent=2)
 
 
-def determine_category(title):
+def determine_category(title, description=""):
     """
-    Haber başlığına göre kategori belirler.
-    Hiçbir kategoriye uymuyorsa DEFAULT_CATEGORY döner.
+    Haber başlığı ve açıklamasına göre kategori belirler.
+    Sadece başlığa bakmak yetmez — 'estetik operasyon' gibi
+    yanıltıcı başlıklar açıklamada doğru kategoriye işaret eder.
     """
-    t = title.lower()
+    t = (title + " " + description).lower()
     for category, keywords in CATEGORY_RULES.items():
         if any(k in t for k in keywords):
             return category
@@ -142,7 +143,7 @@ def main():
             description=yeni_aciklama,
             source=haber["source"],
             image_url=detay["image_url"],
-            category=determine_category(haber["title"])
+            category=determine_category(haber["title"], detay["description"])
         )
 
         # Telegram mesajını hazırla
