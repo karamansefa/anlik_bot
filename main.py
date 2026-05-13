@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from collections import defaultdict
 from scraper import get_all_news, get_article_detail
 from image_generator import create_news_image, start_server
@@ -40,18 +41,116 @@ def sent_news_kaydet(liste):
         json.dump(liste, f, ensure_ascii=False, indent=2)
 
 
+import re
+
 def determine_category(title, description=""):
     """
     Haber başlığı ve açıklamasına göre kategori belirler.
-    Sadece başlığa bakmak yetmez — 'estetik operasyon' gibi
-    yanıltıcı başlıklar açıklamada doğru kategoriye işaret eder.
+    Tam kelime eşleşmesi kullanır — 'kar' kelimesi 
+    'kariyer' içinde eşleşmez.
     """
     t = (title + " " + description).lower()
+    
     for category, keywords in CATEGORY_RULES.items():
-        if any(k in t for k in keywords):
-            return category
+        for kelime in keywords:
+            # Tam kelime eşleşmesi
+            pattern = r'\b' + re.escape(kelime) + r'\b'
+            if re.search(pattern, t):
+                return category
+    
     return DEFAULT_CATEGORY
 
+def groq_category(title, description=""):
+    """
+    Groq API ile haber kategorisi belirler.
+    Sadece determine_category() GÜNDEM döndürdüğünde çağrılır.
+    """
+    from rewriter import GROQ_API_KEY
+    import requests
+
+    kategoriler = ", ".join(CATEGORY_RULES.keys())
+
+    prompt = f"""Aşağıdaki Türkçe haberi EN UYGUN kategoriye yerleştir.
+
+KATEGORİLER VE ANLAMLARI:
+- TRAFİK: trafik kazası, yol çalışması, araç kazası
+- HAVA: hava durumu, yağış, fırtına, deprem
+- ASAYİŞ: suç, hırsızlık, uyuşturucu, operasyon, tutuklama
+- SPOR: futbol, basketbol, maç, turnuva, spor müsabakası
+- ETKİNLİK: konser, festival, sergi, tören, kutlama
+- DUYURU: belediye kararı, ihale, resmi açıklama
+- KÜLTÜR: sanat, müze, tarih, edebiyat
+- EĞİTİM: okul, üniversite, öğrenci, eğitim, kurs
+- GÜNDEM: diğer haberler
+
+Sadece kategori adını yaz, başka hiçbir şey yazma.
+
+Başlık: {title}
+Açıklama: {description}"""
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    body = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Sen Türkçe haber kategorilendiren bir asistansın. Sadece kategori adını yaz."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.1
+    }
+
+    try:
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=body,
+            timeout=10
+        )
+        data = response.json()
+        kategori = data["choices"][0]["message"]["content"].strip().upper()
+
+        # Geçerli kategori mi?
+        gecerli_kategoriler = list(CATEGORY_RULES.keys()) + ["GÜNDEM"]
+        if kategori in gecerli_kategoriler:
+            return kategori
+        return DEFAULT_CATEGORY
+
+    except Exception as e:
+        print(f"  Groq kategori hatası: {e}")
+        return DEFAULT_CATEGORY
+    
+def get_category(title, description=""):
+    """
+    Hibrit kategori belirleme fonksiyonu.
+
+    1. Önce manuel liste ile dene
+    2. GÜNDEM dönerse → Groq'a sor
+    3. Groq da GÜNDEM dönerse → GÜNDEM kalsın
+
+    Neden hibrit?
+    - Manuel liste hızlı ve ücretsiz
+    - Groq sadece belirsiz haberler için çağrılır
+    - Groq kotası korunur
+    """
+    # 1. ADIM: Manuel liste
+    manuel_kategori = determine_category(title, description)
+
+    # 2. ADIM: Manuel GÜNDEM döndürdüyse Groq'a sor
+    if manuel_kategori == DEFAULT_CATEGORY:
+        print(f"  Kategori belirsiz, AI'ya soruluyor...")
+        return groq_category(title, description)
+
+    # 3. ADIM: Manuel sonuç verdiyse direkt döndür
+    return manuel_kategori    
 
 def gonderilecek_haberleri_sec(yeni_haberler):
     """
@@ -83,7 +182,6 @@ def gonderilecek_haberleri_sec(yeni_haberler):
                 gonderilecekler.append(haber)
 
     return gonderilecekler
-
 
 def main():
     print("=" * 50)
@@ -143,7 +241,7 @@ def main():
             description=yeni_aciklama,
             source=haber["source"],
             image_url=detay["image_url"],
-            category=determine_category(haber["title"], detay["description"])
+            category=get_category(haber["title"], detay["description"])
         )
 
         # Telegram mesajını hazırla
