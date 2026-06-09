@@ -30,42 +30,47 @@ def start_server():
 
 def gorsel_olustur(prompt):
     """
-    Hugging Face API ile AI görsel üretir.
-    Stable Diffusion XL kullanır.
-    Görsel binary olarak gelir, dosyaya kaydedilir.
+    Replicate API ile AI görsel üretir.
+    Flux Schnell modeli kullanır — hızlı ve ücretsiz.
     """
     import requests as req
 
-    HF_API_KEY = os.getenv("HF_API_KEY")
+    REPLICATE_API_KEY = os.getenv("REPLICATE_API_KEY")
 
     headers = {
-        "Authorization": f"Bearer {HF_API_KEY}",
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {REPLICATE_API_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "wait"
     }
 
     body = {
-        "inputs": prompt,
-        "parameters": {
+        "input": {
+            "prompt": prompt,
             "width": 1024,
-            "height": 1024
+            "height": 1024,
+            "num_outputs": 1
         }
     }
 
     try:
         response = req.post(
-            "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0",
+            "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions",
             headers=headers,
             json=body,
             timeout=60
         )
 
-        if response.status_code == 200:
+        data = response.json()
+
+        if response.status_code in [200, 201] and data.get("output"):
+            gorsel_url = data["output"][0]
+            gorsel_response = req.get(gorsel_url, timeout=30)
             with open(BG_PATH, "wb") as f:
-                f.write(response.content)
+                f.write(gorsel_response.content)
             print(f"  AI görsel oluşturuldu: {BG_PATH}")
             return BG_PATH
         else:
-            print(f"  HF hatası: {response.status_code} - {response.text[:100]}")
+            print(f"  Replicate hatası: {response.status_code} - {str(data)[:100]}")
             return None
 
     except Exception as e:
