@@ -30,53 +30,46 @@ def start_server():
 
 def gorsel_olustur(prompt):
     """
-    Replicate API ile AI görsel üretir.
-    Flux Schnell modeli kullanır — hızlı ve ücretsiz.
+    Stability AI ile görsel üretir.
+    Ücretsiz 25 kredi ile başlar.
     """
     import requests as req
 
-    REPLICATE_API_KEY = os.getenv("REPLICATE_API_KEY")
+    STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
 
     headers = {
-        "Authorization": f"Bearer {REPLICATE_API_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "wait"
+        "Authorization": f"Bearer {STABILITY_API_KEY}",
+        "Accept": "image/*"
     }
 
     body = {
-        "input": {
-            "prompt": prompt,
-            "width": 1024,
-            "height": 1024,
-            "num_outputs": 1
-        }
+        "prompt": prompt,
+        "output_format": "png",
+        "width": 1024,
+        "height": 1024,
     }
 
     try:
         response = req.post(
-            "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions",
+            "https://api.stability.ai/v2beta/stable-image/generate/core",
             headers=headers,
-            json=body,
+            files={"none": ""},
+            data=body,
             timeout=60
         )
 
-        data = response.json()
-
-        if response.status_code in [200, 201] and data.get("output"):
-            gorsel_url = data["output"][0]
-            gorsel_response = req.get(gorsel_url, timeout=30)
+        if response.status_code == 200:
             with open(BG_PATH, "wb") as f:
-                f.write(gorsel_response.content)
+                f.write(response.content)
             print(f"  AI görsel oluşturuldu: {BG_PATH}")
             return BG_PATH
         else:
-            print(f"  Replicate hatası: {response.status_code} - {str(data)[:100]}")
+            print(f"  Stability hatası: {response.status_code} - {response.text[:100]}")
             return None
 
     except Exception as e:
         print(f"  Görsel üretim hatası: {e}")
         return None
-
 
 def turkce_buyut(text):
     return (text
