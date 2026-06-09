@@ -6,7 +6,7 @@ from scraper import get_all_news, get_article_detail
 from image_generator import create_news_image, start_server
 from telegram_sender import send_photo, send_message
 from config import CATEGORY_RULES, DEFAULT_CATEGORY, MAX_NEWS_PER_RUN, SERVER_PORT
-from rewriter import rewrite_news
+from rewriter import rewrite_news, generate_image_prompt
 
 # ---------------------------------------------------
 # AYARLAR
@@ -41,24 +41,22 @@ def sent_news_kaydet(liste):
         json.dump(liste, f, ensure_ascii=False, indent=2)
 
 
-import re
-
 def determine_category(title, description=""):
     """
     Haber başlığı ve açıklamasına göre kategori belirler.
-    Tam kelime eşleşmesi kullanır — 'kar' kelimesi 
+    Tam kelime eşleşmesi kullanır — 'kar' kelimesi
     'kariyer' içinde eşleşmez.
     """
     t = (title + " " + description).lower()
-    
+
     for category, keywords in CATEGORY_RULES.items():
         for kelime in keywords:
-            # Tam kelime eşleşmesi
             pattern = r'\b' + re.escape(kelime) + r'\b'
             if re.search(pattern, t):
                 return category
-    
+
     return DEFAULT_CATEGORY
+
 
 def groq_category(title, description=""):
     """
@@ -67,8 +65,6 @@ def groq_category(title, description=""):
     """
     from rewriter import GROQ_API_KEY
     import requests
-
-    kategoriler = ", ".join(CATEGORY_RULES.keys())
 
     prompt = f"""Aşağıdaki Türkçe haberi EN UYGUN kategoriye yerleştir.
 
@@ -118,7 +114,6 @@ Açıklama: {description}"""
         data = response.json()
         kategori = data["choices"][0]["message"]["content"].strip().upper()
 
-        # Geçerli kategori mi?
         gecerli_kategoriler = list(CATEGORY_RULES.keys()) + ["GÜNDEM"]
         if kategori in gecerli_kategoriler:
             return kategori
@@ -127,53 +122,39 @@ Açıklama: {description}"""
     except Exception as e:
         print(f"  Groq kategori hatası: {e}")
         return DEFAULT_CATEGORY
-    
+
+
 def get_category(title, description=""):
     """
     Hibrit kategori belirleme fonksiyonu.
-
     1. Önce manuel liste ile dene
     2. GÜNDEM dönerse → Groq'a sor
     3. Groq da GÜNDEM dönerse → GÜNDEM kalsın
-
-    Neden hibrit?
-    - Manuel liste hızlı ve ücretsiz
-    - Groq sadece belirsiz haberler için çağrılır
-    - Groq kotası korunur
     """
-    # 1. ADIM: Manuel liste
     manuel_kategori = determine_category(title, description)
 
-    # 2. ADIM: Manuel GÜNDEM döndürdüyse Groq'a sor
     if manuel_kategori == DEFAULT_CATEGORY:
         print(f"  Kategori belirsiz, AI'ya soruluyor...")
         return groq_category(title, description)
 
-    # 3. ADIM: Manuel sonuç verdiyse direkt döndür
-    return manuel_kategori    
+    return manuel_kategori
+
 
 def gonderilecek_haberleri_sec(yeni_haberler):
     """
     Gönderilecek haberleri seçer.
-
     1. TUR: Her siteden 1'er haber al
     2. TUR: Slot dolmadıysa kalan haberlerle tamamla
-
-    Örnek:
-    - 3 siteden haber var → her birinden 1 = 3 haber
-    - 1 siteden haber var → o siteden 3 haber
     """
     site_counts = defaultdict(int)
     gonderilecekler = []
 
-    # 1. TUR: Her siteden 1'er haber al
     for haber in yeni_haberler:
         site = haber["source"]
         if site_counts[site] < 1 and len(gonderilecekler) < MAX_NEWS_PER_RUN:
             gonderilecekler.append(haber)
             site_counts[site] += 1
 
-    # 2. TUR: Slot dolmadıysa kalan haberleri ekle
     if len(gonderilecekler) < MAX_NEWS_PER_RUN:
         for haber in yeni_haberler:
             if len(gonderilecekler) >= MAX_NEWS_PER_RUN:
@@ -182,6 +163,7 @@ def gonderilecek_haberleri_sec(yeni_haberler):
                 gonderilecekler.append(haber)
 
     return gonderilecekler
+
 
 def main():
     print("=" * 50)
@@ -235,13 +217,19 @@ def main():
         )
         print(f"  Yeni başlık: {yeni_baslik[:50]}...")
 
+        # Kategoriyi belirle — hem görsel hem şablon için kullanılır
+        kategori = get_category(haber["title"], detay["description"])
+
+        # Görsel prompt üret
+        gorsel_prompt = generate_image_prompt(yeni_baslik, kategori)
+
         # Görseli oluştur
         gorsel_yolu = create_news_image(
             title=yeni_baslik,
             description=yeni_aciklama,
             source=haber["source"],
-            image_url=detay["image_url"],
-            category=get_category(haber["title"], detay["description"])
+            image_prompt=gorsel_prompt,
+            category=kategori
         )
 
         # Telegram mesajını hazırla

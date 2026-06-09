@@ -2,10 +2,12 @@ import os
 import threading
 import urllib.parse
 import http.server
+import urllib.parse as url_parse
 from playwright.sync_api import sync_playwright
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_PATH = os.path.join(BASE_DIR, "haber_gorseli.png")
+BG_PATH = os.path.join(BASE_DIR, "haber_gorseli_bg.png")
 PORT = 8765
 
 
@@ -26,12 +28,52 @@ def start_server():
     return server
 
 
+def gorsel_olustur(prompt):
+    """
+    Hugging Face API ile AI görsel üretir.
+    Stable Diffusion XL kullanır.
+    Görsel binary olarak gelir, dosyaya kaydedilir.
+    """
+    import requests as req
+
+    HF_API_KEY = os.getenv("HF_API_KEY")
+
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    body = {
+        "inputs": prompt,
+        "parameters": {
+            "width": 1024,
+            "height": 1024
+        }
+    }
+
+    try:
+        response = req.post(
+            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+            headers=headers,
+            json=body,
+            timeout=60
+        )
+
+        if response.status_code == 200:
+            with open(BG_PATH, "wb") as f:
+                f.write(response.content)
+            print(f"  AI görsel oluşturuldu: {BG_PATH}")
+            return BG_PATH
+        else:
+            print(f"  HF hatası: {response.status_code} - {response.text[:100]}")
+            return None
+
+    except Exception as e:
+        print(f"  Görsel üretim hatası: {e}")
+        return None
+
+
 def turkce_buyut(text):
-    """
-    Türkçe karakterleri doğru büyütür.
-    Python upper() → 'i' = 'I' (YANLIŞ)
-    Bu fonksiyon → 'i' = 'İ' (DOĞRU)
-    """
     return (text
         .replace("i", "İ")
         .replace("ı", "I")
@@ -45,11 +87,6 @@ def turkce_buyut(text):
 
 
 def _son_cumlede_kes(metin):
-    """
-    Metni son tam cümlede keser.
-    Nokta, ünlem veya soru işaretinde biter.
-    Bitmiyorsa olduğu gibi döner.
-    """
     for isaret in [".", "!", "?"]:
         son = metin.rfind(isaret)
         if son > 0:
@@ -57,14 +94,14 @@ def _son_cumlede_kes(metin):
     return metin
 
 
-def create_news_image(title, description, source, image_url=None, category=""):
+def create_news_image(title, description, source, image_prompt="", category=""):
     """
     Haber görseli oluşturur.
-    title       → haberin başlığı
-    description → haberin kısa açıklaması
-    source      → kaynak site adı
-    image_url   → arka plan görseli URL'si (opsiyonel)
-    category    → haber kategorisi
+    title        → haberin başlığı
+    description  → haberin kısa açıklaması
+    source       → kaynak site adı
+    image_prompt → AI görsel prompt'u (Hugging Face'e gönderilir)
+    category     → haber kategorisi
     """
     # Başlığı ikiye böl
     words = title.split()
@@ -75,12 +112,17 @@ def create_news_image(title, description, source, image_url=None, category=""):
     # Açıklamayı son tam cümlede kes
     temiz_aciklama = _son_cumlede_kes(description) if description else ""
 
+    # AI görsel üret
+    bg_path = None
+    if image_prompt:
+        bg_path = gorsel_olustur(image_prompt)
+
     params = urllib.parse.urlencode({
         "h1": h1,
         "h2": h2,
         "desc": temiz_aciklama,
         "cat": category,
-        "img": image_url or ""
+        "img": f"http://localhost:{PORT}/haber_gorseli_bg.png" if bg_path else ""
     })
 
     url = f"http://localhost:{PORT}/canakkale-anlik.html?{params}"
@@ -109,6 +151,7 @@ if __name__ == "__main__":
         title="Çanakkale'de Troya Maratonu heyecanı başladı",
         description="Çanakkale'de düzenlenen Troya Maratonu'na bu yıl binlerce sporcu katıldı. Etkinlik büyük ilgi gördü.",
         source="Çanakkale Haber",
+        image_prompt="marathon runners on a coastal road Turkey Canakkale photorealistic",
         category="ETKİNLİK"
     )
 

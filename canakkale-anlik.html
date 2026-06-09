@@ -528,6 +528,10 @@ function drawRich(text,x,y,maxW,fs){
   if(params.get("desc")) gi("iDesc").value = params.get("desc");
   if(params.get("cat")) activeCat = params.get("cat");
   if(params.get("loc")) gi("iLoc").value = params.get("loc");
+  if(params.get("img")) {
+  hasBg = false;
+  bgImg.src = params.get("img");
+}
 })();
 
 document.fonts.ready.then(function(){draw();});
