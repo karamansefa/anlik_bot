@@ -53,7 +53,7 @@ def gorsel_olustur(prompt):
 
     try:
         response = req.post(
-            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+            "https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0",
             headers=headers,
             json=body,
             timeout=60
