@@ -36,6 +36,9 @@ def gorsel_olustur(prompt):
     import requests as req
 
     STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
+    print(f"  DEBUG key uzunluk: {len(STABILITY_API_KEY) if STABILITY_API_KEY else 0}")
+    print(f"  DEBUG key repr: {repr(STABILITY_API_KEY)}")
+    
 
     headers = {
         "Authorization": f"Bearer {STABILITY_API_KEY}",
