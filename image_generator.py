@@ -30,36 +30,17 @@ def start_server():
 
 def gorsel_olustur(prompt):
     """
-    Stability AI ile görsel üretir.
-    Ücretsiz 25 kredi ile başlar.
+    Pollinations.ai ile görsel üretir.
+    Tamamen ücretsiz, API key gerektirmez.
     """
     import requests as req
+    import urllib.parse
 
-    STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
-    print(f"  DEBUG key uzunluk: {len(STABILITY_API_KEY) if STABILITY_API_KEY else 0}")
-    print(f"  DEBUG key repr: {repr(STABILITY_API_KEY)}")
-    
-
-    headers = {
-        "Authorization": f"Bearer {STABILITY_API_KEY}",
-        "Accept": "image/*"
-    }
-
-    body = {
-        "prompt": prompt,
-        "output_format": "png",
-        "width": 1024,
-        "height": 1024,
-    }
+    encoded_prompt = urllib.parse.quote(prompt)
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true&model=flux"
 
     try:
-        response = req.post(
-            "https://api.stability.ai/v2beta/stable-image/generate/core",
-            headers=headers,
-            files={"none": ""},
-            data=body,
-            timeout=60
-        )
+        response = req.get(url, timeout=60)
 
         if response.status_code == 200:
             with open(BG_PATH, "wb") as f:
@@ -67,7 +48,7 @@ def gorsel_olustur(prompt):
             print(f"  AI görsel oluşturuldu: {BG_PATH}")
             return BG_PATH
         else:
-            print(f"  Stability hatası: {response.status_code} - {response.text[:100]}")
+            print(f"  Pollinations hatası: {response.status_code}")
             return None
 
     except Exception as e:
