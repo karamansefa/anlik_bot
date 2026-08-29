@@ -34,7 +34,7 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
     }
 
     body = {
-        "model": "llama3-70b-8192",
+        "model": "openai/gpt-oss-20b",
         "messages": [
             {
                 "role": "system",
@@ -102,7 +102,7 @@ Kategori: {category}"""
     }
 
     body = {
-        "model": "llama3-70b-8192",
+        "model": "openai/gpt-oss-20b",
         "messages": [
             {
                 "role": "system",
