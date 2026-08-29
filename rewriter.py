@@ -34,7 +34,7 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
     }
 
     body = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama3-70b-8192",
         "messages": [
             {
                 "role": "system",
@@ -72,7 +72,6 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
     
     except Exception as e:
         print(f"Groq hatası: {e}")
-        print(f"Groq response: {response.text[:300] if 'response' in dir() else 'response yok'}")
         return title, description
 
 
@@ -103,7 +102,7 @@ Kategori: {category}"""
     }
 
     body = {
-        "model": "llama-3.3-70b-versatile",
+        "model": "llama3-70b-8192",
         "messages": [
             {
                 "role": "system",
@@ -134,7 +133,6 @@ Kategori: {category}"""
 
     except Exception as e:
         print(f"  Prompt hatası: {e}")
-        print(f"  Groq response: {response.text[:300] if 'response' in dir() else 'response yok'}")
         # Hata olursa kategori bazlı varsayılan prompt
         varsayilan = {
             "TRAFİK": "traffic accident Turkey street photorealistic",
