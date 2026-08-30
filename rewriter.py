@@ -84,7 +84,7 @@ def generate_image_prompt(title, category):
     Türkçe başlık → Groq → İngilizce prompt → Pollinations → Görsel
     """
     prompt_text = f"""Aşağıdaki Türkçe haber için Pollinations.ai'ye gönderilecek
-bir İngilizce görsel prompt yaz.
+    bir İngilizce görsel prompt yaz.
 
 Kurallar:
 - Maksimum 10 kelime
@@ -92,6 +92,8 @@ Kurallar:
 - Metin, yazı, harf içermesin
 - Türkiye'ye uygun görsel olsun
 - Sadece prompt yaz, başka hiçbir şey yazma
+- Asla kişi ismi veya yüz tarif etme
+- Olayın mekanını, atmosferini, sahnesini tarif et
 
 Haber başlığı: {title}
 Kategori: {category}"""
@@ -106,7 +108,8 @@ Kategori: {category}"""
         "messages": [
             {
                 "role": "system",
-                "content": "Sen görsel prompt üretiyorsun. Sadece İngilizce prompt yaz, başka hiçbir şey yazma."
+                "content": """Sen görsel prompt üretiyorsun. Sadece İngilizce prompt yaz, başka hiçbir şey yazma.
+Asla kişi ismi, yüz veya insan tarif etme. Olayın geçtiği mekanı ve atmosferi tarif et."""
             },
             {
                 "role": "user",
