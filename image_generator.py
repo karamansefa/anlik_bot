@@ -37,7 +37,7 @@ def gorsel_olustur(prompt):
     import urllib.parse
 
     encoded_prompt = urllib.parse.quote(prompt)
-    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true&model=flux"
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true&model=flux-realism"
 
     try:
         response = req.get(url, timeout=60)
