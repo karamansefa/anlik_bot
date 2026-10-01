@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 from dotenv import load_dotenv
 
@@ -9,6 +10,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 def rewrite_news(title, description):
     """
     Haberi Groq API ile yeniden yazar.
+    JSON schema mode — çıktı garantili olarak {"baslik": ..., "aciklama": ...} formatında gelir.
     Hata durumunda orijinal haberi döndürür, bot durmaz.
     """
     prompt = f"""Sen bir Türkçe haber editörüsün. Aşağıdaki haberi SADECE TÜRKÇE olarak yeniden yaz.
@@ -22,11 +24,7 @@ KESİNLİKLE UYULMASI GEREKEN KURALLAR:
 - Açıklama haberin özünü yansıtmalı
 
 Başlık: {title}
-Açıklama: {description}
-
-SADECE şu formatta yaz:
-BAŞLIK: yeniden yazılmış başlık
-AÇIKLAMA: yeniden yazılmış açıklama"""
+Açıklama: {description}"""
 
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -45,7 +43,23 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
                 "content": prompt
             }
         ],
-        "temperature": 0.3
+        "temperature": 0.3,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "rewritten_news",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "baslik": {"type": "string"},
+                        "aciklama": {"type": "string"}
+                    },
+                    "required": ["baslik", "aciklama"],
+                    "additionalProperties": False
+                }
+            }
+        }
     }
 
     try:
@@ -56,20 +70,9 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
             timeout=15
         )
         data = response.json()
-        text = data["choices"][0]["message"]["content"]
+        parsed = json.loads(data["choices"][0]["message"]["content"])
+        return parsed["baslik"], parsed["aciklama"]
 
-        lines = text.strip().split("\n")
-        new_title = title
-        new_description = description
-
-        for line in lines:
-            if line.startswith("BAŞLIK:"):
-                new_title = line.replace("BAŞLIK:", "").strip()
-            elif line.startswith("AÇIKLAMA:"):
-                new_description = line.replace("AÇIKLAMA:", "").strip()
-
-        return new_title, new_description
-    
     except Exception as e:
         print(f"Groq hatası: {e}")
         return title, description
@@ -78,13 +81,12 @@ AÇIKLAMA: yeniden yazılmış açıklama"""
 def generate_image_prompt(title, category):
     """
     Haber başlığı ve kategorisinden İngilizce görsel prompt üretir.
-    Pollinations.ai için kullanılır.
+    JSON schema mode — çıktı garantili olarak {"prompt": ...} formatında gelir.
 
     Akış:
     Türkçe başlık → Groq → İngilizce prompt → Pollinations → Görsel
     """
-    prompt_text = f"""Aşağıdaki Türkçe haber için Pollinations.ai'ye gönderilecek
-    bir İngilizce görsel prompt yaz.
+    prompt_text = f"""Aşağıdaki Türkçe haber için Pollinations.ai'ye gönderilecek bir İngilizce görsel prompt yaz.
 
 Kurallar:
 - Maksimum 10 kelime
@@ -108,15 +110,29 @@ Kategori: {category}"""
         "messages": [
             {
                 "role": "system",
-                "content": """Sen görsel prompt üretiyorsun. Sadece İngilizce prompt yaz, başka hiçbir şey yazma.
-Asla kişi ismi, yüz veya insan tarif etme. Olayın geçtiği mekanı ve atmosferi tarif et."""
+                "content": "Sen görsel prompt üretiyorsun. Sadece İngilizce prompt yaz, başka hiçbir şey yazma. Asla kişi ismi, yüz veya insan tarif etme. Olayın geçtiği mekanı ve atmosferi tarif et."
             },
             {
                 "role": "user",
                 "content": prompt_text
             }
         ],
-        "temperature": 0.7
+        "temperature": 0.7,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "image_prompt",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {"type": "string"}
+                    },
+                    "required": ["prompt"],
+                    "additionalProperties": False
+                }
+            }
+        }
     }
 
     try:
@@ -127,16 +143,13 @@ Asla kişi ismi, yüz veya insan tarif etme. Olayın geçtiği mekanı ve atmosf
             timeout=10
         )
         data = response.json()
-        prompt = data["choices"][0]["message"]["content"].strip()
-
-        # Tırnak işaretlerini temizle
-        prompt = prompt.strip('"').strip("'")
-        print(f"  Görsel prompt: {prompt}")
-        return prompt
+        parsed = json.loads(data["choices"][0]["message"]["content"])
+        image_prompt = parsed["prompt"]
+        print(f"  Görsel prompt: {image_prompt}")
+        return image_prompt
 
     except Exception as e:
         print(f"  Prompt hatası: {e}")
-        # Hata olursa kategori bazlı varsayılan prompt
         varsayilan = {
             "TRAFİK": "traffic accident Turkey street photorealistic",
             "HAVA": "stormy weather Turkey landscape photorealistic",
@@ -154,7 +167,6 @@ Asla kişi ismi, yüz veya insan tarif etme. Olayın geçtiği mekanı ve atmosf
 # TEST BLOĞU
 # ---------------------------------------------------
 if __name__ == "__main__":
-    # rewrite_news testi
     baslik = "Çanakkale'de trafik kazası: 2 kişi yaralandı"
     aciklama = "Merkez ilçede meydana gelen trafik kazasında 2 kişi yaralanarak hastaneye kaldırıldı."
 
@@ -166,6 +178,5 @@ if __name__ == "__main__":
     print(f"Yeni açıklama     : {yeni_aciklama}")
     print(f"---")
 
-    # generate_image_prompt testi
     prompt = generate_image_prompt(yeni_baslik, "TRAFİK")
     print(f"Görsel prompt     : {prompt}")
