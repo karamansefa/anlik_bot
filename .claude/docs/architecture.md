@@ -71,3 +71,6 @@ Kayıt: `auth.pollinations.ai` — 31 Mart 2025 sonrası kayıtsız kullanımda 
 - **Debug tekniği:** `repr()` + uzunluk kontrolü ile debug print — GitHub Actions loglarında key'i açığa çıkarmadan teşhis için etkili.
 - **Lokal API testi:** `python -c "import requests; r = requests.post(...); print(r.status_code)"` ile GitHub Actions'ı beklemeden direkt API'yi test et.
 - **Groq model değişimi:** `llama-3.3-70b-versatile` deprecated, şu an aktif: `openai/gpt-oss-20b`. Aktif modelleri görmek için: `GET https://api.groq.com/openai/v1/models`
+- **JSON Schema Mode:** LLM çıktısını serbest metin olarak parse etme — API seviyesinde şema zorla. 
+  Eski yöntem (`line.startswith`) sessiz hata üretir; JSON schema ya doğru format getirir ya hata fırlatır, ikisi de görünür.
+  Production'da standart yaklaşım budur.
